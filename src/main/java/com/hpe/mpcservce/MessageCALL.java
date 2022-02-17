@@ -13,6 +13,8 @@ public class MessageCALL {
     private String status_code;
     private String status_description;
     
+    public MessageCALL() {}
+    
 	public MessageCALL(String message_type, long timestamp, long origin, long destination, int duration, String status_code,
 			String status_description) {
 		super();
