@@ -44,8 +44,10 @@ public class LoadMessages {
 							}
 						} catch (JsonParseException e) {
 							incorrect_lines++;
+							continue;
 						} catch (JSONException s) {
 							incorrect_lines++;
+							continue;
 						}
 						sc.close();
 					}
