@@ -13,20 +13,18 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 class MessageController {
 
-  private final MessageRepoCALL repositoryCALL;
-  private final MessageRepoMSG repositoryMSG;
+  private final MessageRepo repository;
 
-  MessageController(MessageRepoCALL repository1, MessageRepoMSG repository2) {
-    this.repositoryCALL = repository1;
-    this.repositoryMSG = repository2;
+  MessageController(MessageRepo repository) {
+    this.repository = repository;
   }
 
 
   // Aggregate root
   // tag::get-aggregate-root[]
-  @GetMapping("/messagesCALL")
-  List<MessageCALL> all() {
-    return repositoryCALL.findAll();
+  @GetMapping("/messages")
+  List<Message> all() {
+    return repository.findAll();
   }
   // end::get-aggregate-root[]
 
