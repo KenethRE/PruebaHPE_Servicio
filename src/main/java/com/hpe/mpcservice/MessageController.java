@@ -2,8 +2,9 @@ package com.hpe.mpcservice;
 
 import java.io.IOException;
 import java.net.URL;
-import java.util.List;
-import java.util.Scanner;
+import java.util.*;
+
+import javax.persistence.ElementCollection;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -13,8 +14,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.hateoas.EntityModel;
-
+import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.Multimap;
 import com.google.gson.Gson;
 import com.google.gson.JsonParseException;
 
@@ -24,43 +25,104 @@ class MessageController {
   private MessageRepo repository;
   private static final Logger log = LoggerFactory.getLogger(MessageController.class);
   private int incorrect_lines = 0;
-
+  private int missing_fields = 0;
+  private int empty_messages = 0;
+  private int processed_files = 0;
+  private int processed_rows = 0;
+  private int number_calls = 0;
+  private int number_msg = 0;
+  @ElementCollection Map <String, ArrayList<String>> origin_destination = new HashMap<>();
+  private int OK_Calls = 0;
+  private int KO_Calls = 0;
+  private ArrayList<String> origin_codes = new ArrayList<String>();
+  private ArrayList<String> destination_codes = new ArrayList<String>();
+  
+  
   MessageController(MessageRepo repository) {
     this.repository = repository;
   }
   
-  @GetMapping("/messages")
+  @GetMapping("/metrics")
   @ResponseBody
-  List<Message> all(@RequestParam (defaultValue="20180131") String date) {
+  String metrics(@RequestParam (defaultValue="20180131") String date) {
 	  repository.deleteAll();
 	  loadMessagesDates(repository, date);
-    return repository.findAll();
-  }
-
-  @GetMapping("/metrics")
-  String metrics() {
-	  Metrics metrics = new Metrics(incorrect_lines, incorrect_lines, incorrect_lines, null, incorrect_lines, incorrect_lines, incorrect_lines);
+	  Metrics metrics = new Metrics(missing_fields, empty_messages, incorrect_lines, origin_destination, OK_Calls, KO_Calls, incorrect_lines);
 	  Gson gson = new Gson();
 	  return gson.toJson(metrics);
+  }
+  
+  
+  @GetMapping("/kpis")
+  @ResponseBody
+  String kpis(@RequestParam (defaultValue="20180131") String date) {
+	  Kpis kpis = new Kpis(processed_files, processed_rows, number_calls, number_msg, origin_codes.size(), destination_codes.size());
+	  Gson gson = new Gson();
+	  return gson.toJson(kpis);
   }
   
   public void loadMessagesDates(MessageRepo repository, String request_date) {
   	URL log_file;
 		try {
-			
 			log_file = new URL("https://raw.githubusercontent.com/vas-test/test1/master/logs/MCP_" + request_date + ".json");
 			Scanner sc;
 			sc = new Scanner(log_file.openStream());
 			while (sc.hasNextLine()) {
 			try {
+				processed_rows++;
 				String next = sc.nextLine();
-				JSONObject obj = new JSONObject(next);
-				
 				Gson g = new Gson();
+				JSONObject obj = new JSONObject(next);
+				Iterator<String> keys = obj.keys();
+				
+				while(keys.hasNext()) {
+					String key = keys.next();		
+					if (obj.getString(key).equals("")) {
+						missing_fields++;
+					}
+				}
+				
+				if(obj.getString("message_content").equals("")) {
+						empty_messages++;
+					}
+				
+				if (!obj.getString("origin").equals("")) {
+					
+				ArrayList<String> phone_numbers_origin = new ArrayList<String>();
+				ArrayList<String> phone_numbers_destination = new ArrayList<String>();
+					
+				
+				ArrayList<String> temp_origin = new ArrayList<String>();
+				ArrayList<String> temp_destination = new ArrayList<String>();
+				String country_code_origin = obj.getString("origin").substring(0, 2);
+				temp_origin.add(country_code_origin);
+				String country_code_destination = obj.getString("destination").substring(0, 2);
+				temp_destination.add(country_code_destination);
+				
+				Set<String> temp_set1 = new HashSet<>(temp_origin);
+				origin_codes.addAll(temp_set1);
+				
+				Set<String> temp_set2 = new HashSet<>(temp_destination);
+				destination_codes.addAll(temp_set2);
+				
+				phone_numbers_origin.add(obj.getString("origin").substring(3, 9));
+				phone_numbers_destination.add(obj.getString("destination").substring(3, 9));
+				origin_destination.put(country_code_origin, phone_numbers_origin);
+				origin_destination.put(country_code_destination, phone_numbers_destination);
+				}
+				
+				if (obj.getString("status_code").equals("OK")){
+					OK_Calls++;
+				} else if (obj.getString("status_code").equals("KO")) {
+					KO_Calls++;
+				}
+				
 				if (obj.getString("message_type").equals("CALL")) {
+					number_calls++;
 					Message mensaje = g.fromJson(next, MessageCALL.class);
 					log.info("Preloading " + repository.save(mensaje));
 				} else if (obj.getString("message_type").equals("MSG")) {
+					number_msg++;
 					Message mensaje = g.fromJson(next, MessageMSG.class);
 					log.info("Preloading " + repository.save(mensaje));
 				}
@@ -74,7 +136,7 @@ class MessageController {
 			
 		}
 			sc.close();
-			
+			processed_files++;
 	} catch (IOException e1) {
 	e1.printStackTrace();
 }
