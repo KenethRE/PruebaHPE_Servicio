@@ -1,4 +1,4 @@
-package com.hpe.mpcservce;
+package com.hpe.mpcservice;
 
 import javax.persistence.*;
 @Entity
