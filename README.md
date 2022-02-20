@@ -5,6 +5,7 @@ El proposito del siguiente repositorio es desarrollar un servicio como prueba te
 Para ejecutar este repositorio bastaria con ejecutar el siguiente comando desde un terminal:
 
 docker run -p 58080:8080 avagromus/hpe
+--------------------------------------------
 
 La aplicacion estaria disponible desde cualquier navegador en el puerto 58080. Para poder ver otro archivo de registro la URL tendria que contener la fecha de esta manera:
 
