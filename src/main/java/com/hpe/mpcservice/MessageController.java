@@ -34,6 +34,7 @@ class MessageController {
   @ElementCollection Map <String, ArrayList<String>> origin_destination = new HashMap<>();
   private int OK_Calls = 0;
   private int KO_Calls = 0;
+  private int total_duration = 0;
   private ArrayList<String> origin_codes = new ArrayList<String>();
   private ArrayList<String> destination_codes = new ArrayList<String>();
   
@@ -47,7 +48,8 @@ class MessageController {
   String metrics(@RequestParam (defaultValue="20180131") String date) {
 	  repository.deleteAll();
 	  loadMessagesDates(repository, date);
-	  Metrics metrics = new Metrics(missing_fields, empty_messages, incorrect_lines, origin_destination, OK_Calls, KO_Calls, incorrect_lines);
+	  double avg_duration = total_duration / number_calls;
+	  Metrics metrics = new Metrics(missing_fields, empty_messages, incorrect_lines, origin_destination, OK_Calls, KO_Calls, avg_duration);
 	  Gson gson = new Gson();
 	  return gson.toJson(metrics);
   }
@@ -76,55 +78,85 @@ class MessageController {
 				Iterator<String> keys = obj.keys();
 				
 				while(keys.hasNext()) {
-					String key = keys.next();		
-					if (obj.getString(key).equals("")) {
-						missing_fields++;
-					}
-				}
-				
-				if(obj.getString("message_content").equals("")) {
-						empty_messages++;
-					}
-				
-				if (!obj.getString("origin").equals("")) {
+					String key = keys.next();
 					
-				ArrayList<String> phone_numbers_origin = new ArrayList<String>();
-				ArrayList<String> phone_numbers_destination = new ArrayList<String>();
+					switch(key) {
 					
-				
-				ArrayList<String> temp_origin = new ArrayList<String>();
-				ArrayList<String> temp_destination = new ArrayList<String>();
-				String country_code_origin = obj.getString("origin").substring(0, 2);
-				temp_origin.add(country_code_origin);
-				String country_code_destination = obj.getString("destination").substring(0, 2);
-				temp_destination.add(country_code_destination);
-				
-				Set<String> temp_set1 = new HashSet<>(temp_origin);
-				origin_codes.addAll(temp_set1);
-				
-				Set<String> temp_set2 = new HashSet<>(temp_destination);
-				destination_codes.addAll(temp_set2);
-				
-				phone_numbers_origin.add(obj.getString("origin").substring(3, 9));
-				phone_numbers_destination.add(obj.getString("destination").substring(3, 9));
-				origin_destination.put(country_code_origin, phone_numbers_origin);
-				origin_destination.put(country_code_destination, phone_numbers_destination);
-				}
-				
-				if (obj.getString("status_code").equals("OK")){
-					OK_Calls++;
-				} else if (obj.getString("status_code").equals("KO")) {
-					KO_Calls++;
-				}
-				
-				if (obj.getString("message_type").equals("CALL")) {
-					number_calls++;
-					Message mensaje = g.fromJson(next, MessageCALL.class);
-					log.info("Preloading " + repository.save(mensaje));
-				} else if (obj.getString("message_type").equals("MSG")) {
-					number_msg++;
-					Message mensaje = g.fromJson(next, MessageMSG.class);
-					log.info("Preloading " + repository.save(mensaje));
+					case "message_type":
+						if (obj.getString(key).equals("")){
+							missing_fields++;
+						} else if (obj.getString("message_type").equals("CALL")) {
+							number_calls++;
+							} else if (obj.getString("message_type").equals("MSG")) {
+							number_msg++;
+							}
+						break;
+					
+					case "timestamp":
+						if (obj.getString(key).equals("")){
+							missing_fields++;
+						}
+						break;
+					case "origin":
+						Double value = obj.getDouble(key);
+						if (value == 0) {
+							missing_fields++;
+						} else {
+							ArrayList<String> phone_numbers_origin = new ArrayList<String>();
+							ArrayList<String> temp_origin = new ArrayList<String>();
+							String country_code_origin = value.toString().substring(0, 2);
+							temp_origin.add(country_code_origin);
+							Set<String> temp_set1 = new HashSet<>(temp_origin);
+							origin_codes.addAll(temp_set1);
+							phone_numbers_origin.add(value.toString().substring(3, 9));
+							origin_destination.put(country_code_origin, phone_numbers_origin);
+						}
+						break;
+					case "destination":
+						Double value2 = obj.getDouble(key);
+						if (value2 == 0) {
+							missing_fields++;
+						} else {
+							ArrayList<String> phone_numbers_destination = new ArrayList<String>();
+							ArrayList<String> temp_destination = new ArrayList<String>();
+							String country_code_destination = value2.toString().substring(0, 2);
+							temp_destination.add(country_code_destination);
+							Set<String> temp_set2 = new HashSet<>(temp_destination);
+							destination_codes.addAll(temp_set2);
+							phone_numbers_destination.add(value2.toString().substring(3, 9));
+							origin_destination.put(country_code_destination, phone_numbers_destination);
+						}
+						break;
+					case "duration":
+						if (obj.getDouble(key) == 0) {
+							missing_fields++;
+							} else {
+								total_duration += obj.getInt(key);
+							}
+						break;
+						
+					case "status_code":
+						if (obj.getString(key).equals("")) {
+							missing_fields++;
+							} else {
+								String status_code = obj.getString(key);
+								if (status_code.equals("OK")){
+									OK_Calls++;
+								} else if (status_code.equals("KO")) {
+									KO_Calls++;
+								} else {
+									missing_fields++;
+								}
+							}
+						break;
+						
+					case "message_content":
+						if (obj.getString(key).equals("")) {
+							empty_messages++;
+						}
+						break;
+					}
+					
 				}
 			} catch (JsonParseException e) {
 				incorrect_lines++;
