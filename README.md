@@ -2,6 +2,18 @@
 
 El proposito del siguiente repositorio es desarrollar un servicio como prueba tecnica para obtener un puesto de trabajo en HPE.
 
+Para ejecutar este repositorio bastaria con ejecutar el siguiente comando desde un terminal:
+
+docker run -p 58080:8080 avagromus/hpe
+--------------------------------------------
+
+La aplicacion estaria disponible desde cualquier navegador en el puerto 58080. Para poder ver otro archivo de registro la URL tendria que contener la fecha de esta manera:
+
+localhost:58080/metrics?date=[fecha]
+--------------------------------------------
+
+
+
 The goal of this exercise is to create a service which exposes an API through which we will retrieve information related with certain Mobile Communication Platform. This information provided by the Mobile Communication Platform will be generated per day in separated files which will contain the following information in JSON format:
 
 - message_type: The type of the message. Two values are valid: {CALL|MSG}
